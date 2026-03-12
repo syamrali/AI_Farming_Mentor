@@ -10,6 +10,7 @@ Real-time AI agronomist avatar web application.
 - API keys:
   - Sarvam API Key
   - Gemini API Key
+  - HeyGen API Key
 
 ## Project Structure
 
