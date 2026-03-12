@@ -32,6 +32,7 @@ Set Environment Variables:
 ```bash
 export SARVAM_API_KEY="your_sarvam_api_key_here"
 export GEMINI_API_KEY="your_gemini_api_key_here"
+export HEYGEN_API_KEY="your_heygen_api_key_here"
 # Note: For Windows, use `set` instead of `export` or create a `.env` file.
 ```
 
@@ -59,6 +60,7 @@ If you prefer to run both the frontend and backend using Docker, you can use `do
    ```bash
    export SARVAM_API_KEY="your_sarvam_api_key"
    export GEMINI_API_KEY="your_gemini_api_key"
+   export HEYGEN_API_KEY="your_heygen_api_key"
    ```
 
 2. **Build and Run**:
