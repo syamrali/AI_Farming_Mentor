@@ -6,6 +6,20 @@ import StreamingAvatar, { AvatarQuality, VoiceEmotion, TaskType } from "@heygen/
 // ─────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────
+export const SUPPORTED_LANGUAGES = [
+  { code: "hi-IN", name: "Hindi", label: "Hindi (हिंदी)" },
+  { code: "te-IN", name: "Telugu", label: "Telugu (తెలుగు)" },
+  { code: "ta-IN", name: "Tamil", label: "Tamil (தமிழ்)" },
+  { code: "ml-IN", name: "Malayalam", label: "Malayalam (മലയാളം)" },
+  { code: "kn-IN", name: "Kannada", label: "Kannada (ಕನ್ನಡ)" },
+  { code: "bn-IN", name: "Bengali", label: "Bengali (বাংলা)" },
+  { code: "gu-IN", name: "Gujarati", label: "Gujarati (ગુજરાતી)" },
+  { code: "mr-IN", name: "Marathi", label: "Marathi (मराठी)" },
+  { code: "pa-IN", name: "Punjabi", label: "Punjabi (ਪੰਜਾਬੀ)" },
+  { code: "or-IN", name: "Odia", label: "Odia (ଓଡ଼ିଆ)" },
+  { code: "en-IN", name: "English", label: "English" },
+];
+
 type AppStatus =
   | "disconnected"
   | "connected"
@@ -145,6 +159,7 @@ export default function Home() {
   const sessionId = useId().replace(/:/g, "");
 
   const [status,     setStatus]     = useState<AppStatus>("disconnected");
+  const [language,   setLanguage]   = useState(SUPPORTED_LANGUAGES[1]); // Default to Telugu
   const [transcript, setTranscript] = useState("");
   const [response,   setResponse]   = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -170,12 +185,20 @@ export default function Home() {
   const connectWS = useCallback(() => {
     const wsUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL ?? "ws://localhost:8000";
     
-    // Add heygen session info if available
-    let url = `${wsUrl}/ws/audio?session_id=${sessionId}`;
+    // Add language info to URL
+    const urlParams = new URLSearchParams({
+      session_id: sessionId,
+      language_code: language.code,
+      language_name: language.name
+    });
+    
     if (heygenSessionId) {
-      url += `&heygen_session_id=${heygenSessionId}`;
+      urlParams.append("heygen_session_id", heygenSessionId);
     }
 
+    const url = `${wsUrl}/ws/audio?${urlParams.toString()}`;
+    console.log(`[WebSocket] Connecting to: ${url}`);
+    
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -209,7 +232,7 @@ export default function Home() {
       reconnectRef.current = setTimeout(connectWS, 3000);
     };
     ws.onerror = () => { setStatus("error"); setErrorMsg("WebSocket error — retrying..."); };
-  }, [sessionId, heygenSessionId]);
+  }, [sessionId, heygenSessionId, language]);
 
   const initHeygenStream = useCallback(async () => {
     if (!heygenOk) return;
@@ -227,11 +250,9 @@ export default function Home() {
       // 3. Start session
       const sessionData = await avatar.createStartAvatar({
         quality: AvatarQuality.Medium,
-        avatarName: "Arash", // Common public avatar ID
-        // Note: Some accounts might need simple Avatar ID like 'Arash'
-        voice: {
-          voiceId: "9f572777f98544d68e2f89c42460616b", // Telugu Voice
-        }
+        avatarName: "Arash", // Common public male avatar ID
+        // Voice is omitted. HeyGen will default to Arash's native male voice
+        // which natively supports multilingual streaming tasks.
       });
       
       setHeygenSessionId(sessionData.session_id);
@@ -282,6 +303,17 @@ export default function Home() {
       }
     };
   }, [connectWS]);
+
+  // Re-connect when language changes
+  useEffect(() => {
+    console.log(`[Language Change] Switching to ${language.name} (${language.code})`);
+    setTranscript("");
+    setResponse("");
+    if (wsRef.current) {
+      console.log("[WebSocket] Closing current connection to switch language...");
+      wsRef.current.close();
+    }
+  }, [language]);
 
   // Initial sequence
   useEffect(() => {
@@ -349,7 +381,7 @@ export default function Home() {
             <span className="logo-icon">🌾</span>
             <div>
               <h1 className="logo-title">Sadhya AI Mentor</h1>
-              <p className="logo-sub">Real-time AI Agronomist Avatar · Telugu · v1.0.1</p>
+              <p className="logo-sub">Real-time AI Agronomist Avatar · Multi-Language · v1.1.0</p>
             </div>
           </div>
           <div className="header-right">
@@ -376,6 +408,36 @@ export default function Home() {
           {/* ── Controls Panel ── */}
           <section className="panel panel--controls">
 
+            {/* Language Selector */}
+            <div className="language-selector" style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <label htmlFor="language-select" style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.7)" }}>Select Language:</label>
+              <select 
+                id="language-select"
+                value={language.code}
+                onChange={(e) => {
+                  const selected = SUPPORTED_LANGUAGES.find(l => l.code === e.target.value);
+                  if (selected) setLanguage(selected);
+                }}
+                disabled={isRecording || isBusy}
+                style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "8px",
+                  padding: "0.5rem 1rem",
+                  color: "white",
+                  outline: "none",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
+                {SUPPORTED_LANGUAGES.map(lang => (
+                  <option key={lang.code} value={lang.code} style={{ background: "#1a1a2e", color: "white" }}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Mic button */}
             <div className="mic-section">
               {isRecording && (
@@ -401,14 +463,14 @@ export default function Home() {
               <p className="mic-hint">
                 {isRecording  ? "Click ▢ when done — Sadhya is listening"
                 : isBusy      ? "Please wait..."
-                : "Speak your farming question in Telugu"}
+                : `Speak your farming question in ${language.name}`}
               </p>
             </div>
 
             {/* Conversation */}
             <div className="conversation">
               <div className="bubble bubble--user">
-                <div className="bubble-hdr"><span>👨‍🌾</span> Farmer (You)</div>
+                <div className="bubble-hdr"><span>👨‍🌾</span> Farmer ({language.name})</div>
                 <p className="bubble-body">
                   {transcript
                     ? `"${transcript}"`
